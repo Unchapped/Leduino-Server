@@ -18,7 +18,7 @@ class _BaseModel(Model): #use this to define db-wide defaults
 	class Meta:
 		database = _db
 
-__all__ = [] #TODO: make this right!
+#__all__ = [] #TODO: make this right!
 
 
 class Channel(Model):
