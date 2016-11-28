@@ -1,4 +1,4 @@
-
+#!/usr/bin/python3
 from peewee import *
 import os
 
