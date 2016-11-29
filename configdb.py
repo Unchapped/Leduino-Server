@@ -1,6 +1,5 @@
 #!/usr/bin/python3
 from peewee import *
-import os
 
 #our "private" database handle
 #use separate db files for tests and productions
@@ -21,45 +20,54 @@ class _BaseModel(Model): #use this to define db-wide defaults
 #__all__ = [] #TODO: make this right!
 
 
-class Channel(Model):
-	name = CharField() #human-readable Channel name
-	node = CharField() #MQTT Node ID, 4 bit Hex
-	channel = IntegerField()
-	color = CharField(default = 'w') #should be 'r','g','b' or default to 'w'.
-	class Meta:
-		database = _db #can this be double inherited?
-		primary_key = CompositeKey('name', 'color')
+class ChannelGroup(_BaseModel):
+	name = CharField(primary_key = True) #human-readable Channel name
+
+	@staticmethod
+	def CreateRGBGroup(name, node, r_ch, g_ch, b_ch, group=None): #factory method for quickly creating RGB fixtures
+		#todo: make this more flexible, for now, assume all channels are colocated on node
+		if group is None: #allow appending to an existing group
+			group = ChannelGroup.create(name = name);
+		Channel.create(name=name + '_r', node=node, channel=r_ch, color='r', group=group)
+		Channel.create(name=name + '_g', node=node, channel=g_ch, color='g', group=group)
+		Channel.create(name=name + '_b', node=node, channel=b_ch, color='b', group=group)
+		return group
+
+	def __repr__(self):		
+		retval = self.name + '(group):\n'
+		for c in self.channels:
+			retval += '\t' + str(c) + '\n'
+		return retval
+
+class Channel(_BaseModel):
+	name = CharField(unique=True, index=True) #human-readable Channel name
+	node = CharField(max_length = 4) #MQTT Node ID, 4 bit Hex
+	channel = IntegerField() #Node Channel Number
+	color = CharField(default = 'w', max_length = 1) #should be 'r','g','b' or default to 'w'.
+	group = ForeignKeyField(ChannelGroup, related_name='channels', null=True)
 	def __repr__(self):
 		return self.name + ':' + self.node + '/' + str(self.channel)
-
-class ColorChannel(_BaseModel):
-	#TODO: add a constructor that overrides/creates "anonymous" internal channels
-	name = CharField(unique=True, index=True) #human-readable Channel name
-	#r = ForeignKeyField(Channel, to_field='name', null = False, related_name='parent')
-	#g = ForeignKeyField(Channel, to_field='name', null = False, related_name='parent')
-	#b = ForeignKeyField(Channel, to_field='name', null = False, related_name='parent')
-	#def __repr__(self):
-	#	return self.name + '(RGB Color): (' + self.r.node + '/' + str(self.r.channel) + "," + self.g.node + '/' + str(self.g.channel) + "," + self.b.node + '/' + str(self.b.channel) + ')'
-
-
-#TODO: we need to manually create an additional foreign key for rgb channels on the db to add r, g and b objects to a Colorchannel
-#db.create_foreign_key(User, User.favorite_post)
+	class Meta:
+		# create a unique on each node/channel pair
+		indexes = (
+			(('node', 'channel'), True),
+		)
 
 class Keyframe(_BaseModel):
-	delay = TimeField()
+	fade = TimeField()
 
-class KeyValue(_BaseModel):
-	channel = ForeignKeyField(Channel, to_field='name', null = False, related_name='keyvals')
-	value = IntegerField() #0 to 255 TODO: should this be float 0 -> 1?
-	keyframe = ForeignKeyField(Keyframe, null = False, related_name='values')
+#
+#class KeyValue(_BaseModel):
+#	channel = ForeignKeyField(Channel, to_field='name', null = False, related_name='keyvals')
+#	value = IntegerField() #0 to 255 TODO: should this be float 0 -> 1?
+#	keyframe = ForeignKeyField(Keyframe, null = False, related_name='values')
 
-class ColorKeyValue(_BaseModel):
-	channel = ForeignKeyField(ColorChannel, to_field='name', null = False, related_name='keyvals')
-	r = IntegerField() #0 to 255 TODO: should this be float 0 -> 1?
-	g = IntegerField() #0 to 255 TODO: should this be float 0 -> 1?
-	b = IntegerField() #0 to 255 TODO: should this be float 0 -> 1?
-	keyframe = ForeignKeyField(Keyframe, null = False, related_name='rgb_values')
-
+#class ColorKeyValue(_BaseModel):
+#	channel = ForeignKeyField(ColorChannel, to_field='name', null = False, related_name='keyvals')
+#	r = IntegerField() #0 to 255 TODO: should this be float 0 -> 1?
+#	g = IntegerField() #0 to 255 TODO: should this be float 0 -> 1?
+#	b = IntegerField() #0 to 255 TODO: should this be float 0 -> 1?
+#	keyframe = ForeignKeyField(Keyframe, null = False, related_name='rgb_values')
 
 
 # this is out module initialization code that opens the db
@@ -74,20 +82,20 @@ def close():
 def create():
 	global _db
 	open()
-	_db.create_tables([Channel, ColorChannel, Keyframe, KeyValue, ColorKeyValue], safe=True)
+	_db.create_tables([Channel, ChannelGroup, Keyframe], safe=True)
 
 if __name__ == "__main__":
 	import os
-	#execute unit tests...
-	os.remove('test.db') # don't use _db_name in case we're in some weird off-nominal case and using the main db
+	import os.path
+	#execute quick n' dirty tests...
+	if os.path.isfile('test.db'): 
+		os.remove('test.db') # don't use _db_name in case we're in some weird off-nominal case and using the main db
 	create()
 	test_c = Channel.create(name='test_c', node='0000', channel=3)
-	test_r = Channel.create(name='test', node='0000', channel=1, color='r')
-	test_g = Channel.create(name='test', node='0000', channel=0, color='g')
-	test_b = Channel.create(name='test', node='0000', channel=2, color='b')
-	test_rgb = ColorChannel.create(name='test')
+	group1 = ChannelGroup.CreateRGBGroup('test_group', '0000', 1, 0, 2)
+	test_c2 = Channel.create(name='test_c2', node='0000', channel=5, group=group1)
+
 	for c in Channel:
 		print(c)
-	#for r in RGBChannel:
-	#	print(r)
+	print(group1)
 	close()
