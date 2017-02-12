@@ -9,7 +9,7 @@ def parse_tuple(string):
 parser = argparse.ArgumentParser(description='send a test keyframe packet to a leduino node.')
 parser.add_argument('channels', metavar='C:V', nargs='+', help='a channel:value tuple to add to the sent keyframe packet', type=parse_tuple)
 parser.add_argument('-n', '--node', help='Specify which leduino node to send the keyframe to', default='0')
-parser.add_argument('-d', '--delay', type=int, help='Specifies how long of a delay (ms) to apply to the keyframe fade-in', default=1000)
+parser.add_argument('-d', '--delay', type=int, help='Specifies how long of a delay (centiseconds) to apply to the keyframe fade-in', default=100)
 parser.add_argument('-s', '--server', help='The MQTT server hostname to connect to', default='localhost')
 parser.add_argument('-p', '--port', help='The MQTT server port number', type=int, default=1883)
 args = parser.parse_args()
