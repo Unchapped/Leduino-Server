@@ -8,7 +8,7 @@ def parse_tuple(string):
 	return tuple(map(int, string.split(':', 2)))
 parser = argparse.ArgumentParser(description='send a test keyframe packet to a leduino node.')
 parser.add_argument('channels', metavar='C:V', nargs='+', help='a channel:value tuple to add to the sent keyframe packet', type=parse_tuple)
-parser.add_argument('-n', '--node', help='Specify which leduino node to send the keyframe to', default='00')
+parser.add_argument('-n', '--node', type=int, help='Specify which leduino node to send the keyframe to', default=0)
 parser.add_argument('-d', '--delay', type=int, help='Specifies how long of a delay (centiseconds) to apply to the keyframe fade-in', default=100)
 parser.add_argument('-s', '--server', help='The MQTT server hostname to connect to', default='localhost')
 parser.add_argument('-p', '--port', help='The MQTT server port number', type=int, default=1883)
@@ -20,7 +20,7 @@ msg = struct.pack('<I', args.delay)
 for chval in args.channels:
 	msg += struct.pack('<BB', chval[0], chval[1])
 
-topic = 'leduino/' + args.node + '/queue'
+topic = 'leduino/' + str(args.node).zfill(2) + '/queue'
 print('Sending packet:', msg, 'to', topic, 'on', args.server)
 
 #connect and send
